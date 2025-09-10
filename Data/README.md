@@ -27,3 +27,7 @@ If you would like to visualize data from a different dataset that is hosted on D
   2. Input this new DOI on line 15.
   3. Update the list of IDs in lines 18-21 to those of your Monitoring Locations of interest. 
 </p>
+<h2>Outputs</h2>
+<p>
+This code generates an SQLite database called raw_data.sqlite. This file needs to be updated once annually to keep the app current. 
+
