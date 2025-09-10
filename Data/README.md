@@ -25,7 +25,8 @@ If you would like to visualize data from a different dataset that is hosted on D
 
   1. Identify the DOI of the dataset you would like to access.
   2. Input this new DOI on line 15.
-  3. Update the list of IDs in lines 18-21 to those of your Monitoring Locations of interest. 
+  3. Update the list of IDs in lines 18-21 to those of your Monitoring Locations of interest.
+  4. Update the parameter of interest (if it is not conductivity) on line 37.
 </p>
 <h2>Outputs</h2>
 <p>
