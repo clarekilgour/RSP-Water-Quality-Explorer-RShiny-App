@@ -107,7 +107,10 @@ server <- function(input, output, session) {
                      p("We would like to thank those stream stewards who dedicated countless 
           volunteer hours to collect the data used in this application."),
                      
-                     p("This app was created in collaboration with DataStream."),
+                     p("This app was created in collaboration with DataStream, and the code is available on ",
+                       a("GitHub",
+                         href = "https://github.com/clarekilgour/RSP-Water-Quality-Explorer-RShiny-App",
+                         target = "_blank"), "."),
                      
                      p("If you have feedback about this app, please reach out to Nikki.Kroetsch@dfo-mpo.gc.ca")
             ),
