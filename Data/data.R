@@ -10,7 +10,7 @@ if (T) {
   setAPIKey(Sys.getenv("DATASTREAM_API_KEY"))
   
   current_year <- year(Sys.Date())  
-  years <- 2021:2024
+  years <- 2021:(year(Sys.Date()) - 1)
   
   rsp_ids <- locations(list(`$filter` = "DOI eq '10.25976/0gvo-9d12'")) %>%
     select(ID, Id, Latitude, Longitude,Name) %>% 
@@ -92,9 +92,9 @@ if (T) {
                      in_transaction=T)
   
   # This will speed up queries and optimize the database
-  s1<-RSQLite::dbSendQuery(con, "CREATE INDEX Conductivity_data_idx ON Conductivity_data (MonitoringLocationID,ActivityStartYear);")
-  s6<-RSQLite::dbSendQuery(con, "pragma vacuum;")
-  s7<-RSQLite::dbSendQuery(con, "pragma optimize;")
+  s1<-RSQLite::dbExecute(con, "CREATE INDEX Conductivity_data_idx ON Conductivity_data (MonitoringLocationID,ActivityStartYear);")
+  s6<-RSQLite::dbExecute(con, "pragma vacuum;")
+  s7<-RSQLite::dbExecute(con, "pragma optimize;")
   
   DBI::dbDisconnect(con)
   
