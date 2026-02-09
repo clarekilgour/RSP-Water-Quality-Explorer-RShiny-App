@@ -34,7 +34,7 @@ if (T) {
     
     filter_string <- paste0(
       "DOI eq '10.25976/0gvo-9d12' and ",
-      "CharacteristicName eq 'Specific conductance' and ",
+      "CharacteristicName in ('Temperature, water', 'Specific conductance','Water level (probe)') and ",
       "LocationId eq '", loc_id, "' and ",
       "ActivityStartYear eq '", yr,"'"
     )
@@ -77,7 +77,7 @@ if (T) {
   
   t1<-dplyr::copy_to(df=obs2,
                      con,
-                     "Conductivity_data",
+                     "Logger_data",
                      overwrite =T,
                      temporary =F,
                      analyze=T,
@@ -92,7 +92,7 @@ if (T) {
                      in_transaction=T)
   
   # This will speed up queries and optimize the database
-  s1<-RSQLite::dbExecute(con, "CREATE INDEX Conductivity_data_idx ON Conductivity_data (MonitoringLocationID,ActivityStartYear);")
+  s1<-RSQLite::dbExecute(con, "CREATE INDEX Logger_data_idx ON Logger_data (MonitoringLocationID,ActivityStartYear,CharacteristicName);")
   s6<-RSQLite::dbExecute(con, "pragma vacuum;")
   s7<-RSQLite::dbExecute(con, "pragma optimize;")
   
