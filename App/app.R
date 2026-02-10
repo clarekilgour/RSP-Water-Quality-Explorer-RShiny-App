@@ -16,16 +16,15 @@ library(RColorBrewer)
 
 setAPIKey(Sys.getenv("DATASTREAM_API_KEY"))
 
+# Get maximum year in stored data -------------------------------------------
+con <- DBI::dbConnect(RSQLite::SQLite(), "raw_data.sqlite")
+
+db_end_year <- tbl(con, "Max_Year") %>%
+  pull(max_year)
+
 # Load list of CoSMo sites ---------------------------------------------------
-site_ids_raw <- locations(list(`$filter` = "DOI eq '10.25976/0gvo-9d12'")) %>%
-  select(ID, Id, Latitude, Longitude, Name) %>%
-  subset(ID %in%
-           c("ALOU01", "ALOU04", "ANCI02", "BROT06", "BRUN01", "COUG02", "COUG03", "COUG05",
-             "CYPR01", "EAGC01", "GUIC01", "HOYC03", "HYDE01", "LUCK01", "MOSS01",
-             "MOSS03", "PEAC01", "ANCI02", "QUIB01", "QUIB02", "RODG02", "SERP01", "SERP02","SILV01",
-             "SEYM01", "STIL04", "STIL05", "STON04", "STON08", "WAGG03", "WAGG01", "YORK05")) %>%
-  subset(Id != "896348") %>%
-  arrange(ID) %>%
+site_ids_raw <- tbl(con, "Locations") %>%
+  collect() %>% 
   mutate(selected = FALSE) %>%
   sf::st_as_sf(coords = c("Longitude", "Latitude"), crs = "WGS84")
 
@@ -33,12 +32,6 @@ pal <- leaflet::colorFactor(
   palette = c("#00A9FF", "orange"),
   domain = c(TRUE, FALSE)
 )
-
-# Get maximum year in stored data -------------------------------------------
-con <- DBI::dbConnect(RSQLite::SQLite(), "raw_data.sqlite")
-
-db_end_year <- tbl(con, "Max_Year") %>%
-  pull(max_year)
 
 DBI::dbDisconnect(con)
 
@@ -217,7 +210,7 @@ server <- function(input, output, session) {
   # Pull data (SQLite for older years + API for newer years) ------------------
   param_xts <- eventReactive(input$goButton, {
     req(input$sites, input$start_year, input$end_year, input$param)
-    
+
     meta <- param_meta[[input$param]]
     req(!is.null(meta))
     
@@ -229,10 +222,25 @@ server <- function(input, output, session) {
       con <- DBI::dbConnect(RSQLite::SQLite(), "raw_data.sqlite")
       onStop(function() suppressWarnings(DBI::dbDisconnect(con)))
       
-      db_out <- tbl(con, "Logger_data") %>%
+      user_sel_PK <- tbl(con, "loc_char_year_tbl") %>%
         filter(MonitoringLocationID %in% input$sites) %>%
         filter(ActivityStartYear %in% years) %>%
         filter(CharacteristicName == meta$characteristic) %>%
+        collect()
+      
+      
+      db_out <- tbl(con, "obs_tbl") %>%
+        filter(loc_char_year_PK %in% !!user_sel_PK$loc_char_year_PK) %>% 
+        left_join(
+          tbl(con, "loc_char_year_tbl"), by = "loc_char_year_PK"
+        ) %>% 
+        left_join(
+          tbl(con, "date_tbl"), by = "date_PK"
+        ) %>% 
+        left_join(
+          tbl(con, "time_tbl"), by = "time_PK"
+        ) %>% 
+        select(-loc_char_year_PK,-date_PK,-time_PK) %>% 
         collect()
       
       DBI::dbDisconnect(con)
@@ -251,7 +259,7 @@ server <- function(input, output, session) {
       for (site_code in input$sites) {
         site_guid <- as.data.frame(site_ids$data) %>%
           filter(ID == site_code) %>%
-          pull(Id)
+          pull(DS_Id)
         
         if (is.na(site_guid) || length(site_guid) == 0) {
           showNotification(paste("Missing GUID for site:", site_code), type = "error")
