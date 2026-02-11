@@ -187,10 +187,9 @@ server <- function(input, output, session) {
           conditionalPanel(
             condition = "input.goButton > 0",
             br(), br(),
-            div(
-              id = "dygraph_container",
-              withSpinner(dygraphOutput("simplePlot", height = "625px"))
-            ),
+            
+            uiOutput("plot_or_message"),
+            
             br(),
             div(
               style = "text-align: center; margin-top: 10px;",
@@ -201,6 +200,46 @@ server <- function(input, output, session) {
       )
     }
   })
+   
+  # Confirm inputs before plotting --------------------------------------------
+   
+   confirmed <- reactiveValues(
+     sites = NULL,
+     start_year = NULL,
+     end_year = NULL,
+     param = NULL
+   )
+   
+   observeEvent(input$goButton, {
+     confirmed$sites <- input$sites
+     confirmed$start_year <- input$start_year
+     confirmed$end_year <- input$end_year
+     confirmed$param <- input$param
+   })
+   
+   # TRUE when inputs have changed since last Go (or Go never pressed)
+   is_stale <- reactive({
+     if (is.null(confirmed$param)) return(TRUE)
+     
+     !identical(input$param, confirmed$param) ||
+       !identical(input$start_year, confirmed$start_year) ||
+       !identical(input$end_year, confirmed$end_year) ||
+       !identical(sort(input$sites), sort(confirmed$sites))
+   })
+   
+   output$plot_or_message <- renderUI({
+     if (is_stale()) {
+       wellPanel(
+         h4("Selections changed"),
+         p("Press Go to update the plot.")
+       )
+     } else {
+       div(
+         id = "dygraph_container",
+         withSpinner(dygraphOutput("simplePlot", height = "625px"))
+       )
+     }
+   })
   
   # Switch pages --------------------------------------------------------------
   observeEvent(input$startButton, {
@@ -209,6 +248,8 @@ server <- function(input, output, session) {
   
   # Pull data (SQLite for older years + API for newer years) ------------------
   param_xts <- eventReactive(input$goButton, {
+    req(input$goButton > 0)
+    req(!is_stale())
     req(input$sites, input$start_year, input$end_year, input$param)
 
     meta <- param_meta[[input$param]]
@@ -316,7 +357,10 @@ server <- function(input, output, session) {
       group_by(MonitoringLocationID, Timestamp) %>%
       summarise(Value = median(Value, na.rm = TRUE), .groups = "drop")
     
-    if (nrow(final_df) == 0) return(NULL)
+    if (nrow(final_df) == 0) {
+      showNotification("No data returned for that selection.", type = "warning")
+      return(NULL)
+    }
     
     df_wide <- final_df %>%
       pivot_wider(names_from = MonitoringLocationID, values_from = Value) %>%
@@ -341,6 +385,7 @@ server <- function(input, output, session) {
   output$simplePlot <- renderDygraph({
     xts_obj <- param_transformed()
     req(!is.null(xts_obj), input$param)
+    req(!is_stale())
     
     ylab <- dplyr::case_when(
       input$param == "cond" ~ "Surface Water Specific Conductance (µS/cm)",
