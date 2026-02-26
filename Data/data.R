@@ -13,13 +13,13 @@ if (T) {
   years <- 2021:(year(Sys.Date()) - 1)
   
   rsp_ids <- locations(list(`$filter` = "DOI eq '10.25976/0gvo-9d12'")) %>%
-    select(ID, Id, Latitude, Longitude,Name) %>% 
+    select(ID, Id, Latitude, Longitude, Name) %>% 
     subset(ID %in% 
              c("ALOU01", "ALOU04", "ANCI02", "BROT06", "BRUN01", "COUG02", "COUG03", "COUG05",
                "CYPR01", "EAGC01", "GUIC01", "HOYC03", "HYDE01", "LUCK01", "MOSS01",
                "MOSS03", "PEAC01", "ANCI02", "QUIB01", "QUIB02", "RODG02", "SERP01", "SERP02","SILV01",
                "SEYM01", "STIL04", "STIL05","STON04", "STON08", "WAGG03", "WAGG01", "YORK05")) %>%
-    subset(Id != "896348") %>% #Removing duplicate COUG05 
+    distinct(ID, Name, .keep_all = TRUE) %>%
     arrange(ID) 
   
   all_obs <- list()  
@@ -34,6 +34,7 @@ if (T) {
         "DOI eq '10.25976/0gvo-9d12' and ",
         "CharacteristicName in ('Temperature, water', 'Specific conductance','Water level (probe)') and ",
         "LocationId eq '", loc_id, "' and ",
+        
         "ActivityStartYear eq '", yr,"'"
       )
       
@@ -43,13 +44,18 @@ if (T) {
              `$top` = 5000))
       
       if (!is.null(obs_result) && nrow(obs_result) > 0) {
+        # Removing duplicate entries
+        obs_result <- obs_result %>%
+          distinct(ActivityStartDate, ActivityStartTime, CharacteristicName,ResultValue, .keep_all = TRUE)
+        
         obs_result$MonitoringLocationID <- loc_name
         all_obs[[length(all_obs) + 1]] <- obs_result
         message("Data pulled for ", loc_name, "(", yr, "): ", nrow(obs_result), " rows")
       } else {
         message("No data for ", loc_name, " (", yr, ")")
       }
-    }
+      
+     }
   }
   
   obs <- bind_rows(all_obs)
@@ -62,14 +68,11 @@ if (T) {
     group_by(MonitoringLocationID, ActivityStartDate,
              ActivityStartTime, CharacteristicName) %>%
     summarise(n = n(), .groups = "drop") %>%
-    filter(n > 1L) #29 duplicate entries
-  
-  obsDups$MonitoringLocationID <- as.factor(obsDups$MonitoringLocationID)
-  obsDups$CharacteristicName <- as.factor(obsDups$CharacteristicName) #There are 160 instances of duplicates
+    filter(n > 1L) #50071 duplicate entries
   
   obs2 <- obs %>% distinct(MonitoringLocationID, ActivityStartDate,
                            ActivityStartTime, CharacteristicName, .keep_all = TRUE)
-  #2,783,155 - 29 = 2,783,126 (correct)
+  #10,082,979 - 50,071 = 10,032,908 (correct)
   
   # Set up primary keys
   obs3 <- obs2 %>% 
